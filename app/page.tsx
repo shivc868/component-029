@@ -257,6 +257,9 @@ export default function Home() {
       el: HTMLElement | null,
       from: DOMRect,
       onComplete?: () => void,
+      // where the element lands relative to its natural layout size —
+      // 1.1 lets the detail title settle 10% larger than its CSS size
+      endScale = 1,
     ) => {
       if (!el) {
         onComplete?.();
@@ -276,8 +279,8 @@ export default function Home() {
         {
           x: 0,
           y: 0,
-          scaleX: 1,
-          scaleY: 1,
+          scaleX: endScale,
+          scaleY: endScale,
           duration: 1,
           // symmetric ease: accelerates gently out of the old layout and
           // decelerates into the new one — no harsh full-speed launch frame
@@ -291,7 +294,9 @@ export default function Home() {
       );
     };
 
-    morph(titleEl, snap.title);
+    // opening, the detail title lands 10% larger than its CSS size;
+    // closing, the list title returns to exactly its natural size
+    morph(titleEl, snap.title, undefined, isClosing ? 1 : 1.1);
     morph(imgEl, snap.image, () => {
       setFlipping(false);
       if (isClosing) {
@@ -681,7 +686,7 @@ export default function Home() {
             className="pointer-events-none absolute inset-0 -z-10 bg-[#0e0e0d] will-change-[opacity]"
           />
           {/* Left: content */}
-          <div className="flex h-full max-w-xl flex-col">
+          <div className="flex h-full max-w-2xl flex-col">
             <button
               type="button"
               onClick={closeDetail}
@@ -710,7 +715,7 @@ export default function Home() {
               the final delivered assets.
             </p>
 
-            <p data-split className="mt-6 max-w-md leading-7 text-zinc-400">
+            <p data-split className="mt-6 leading-7 text-zinc-400">
               The brief was simple to say and hard to do: make it feel
               effortless. We built the system around a few strict rules — one
               typeface, a tight grid, and photography that breathes — so every
@@ -738,7 +743,24 @@ export default function Home() {
             <a
               href="#"
               data-detail-fade
-              className="mt-auto inline-flex w-fit items-center gap-3 rounded-full bg-white px-6 py-3.5 font-semibold text-zinc-900 transition-transform will-change-[transform,opacity] hover:scale-[1.03]"
+              // hover scale runs through GSAP too — a CSS transition on
+              // transform would re-interpolate every frame the entrance/exit
+              // tween writes, so the two would fight and smear the motion
+              onMouseEnter={(e) =>
+                gsap.to(e.currentTarget, {
+                  scale: 1.03,
+                  duration: 0.3,
+                  ease: "power2.out",
+                })
+              }
+              onMouseLeave={(e) =>
+                gsap.to(e.currentTarget, {
+                  scale: 1,
+                  duration: 0.3,
+                  ease: "power2.out",
+                })
+              }
+              className="mt-auto inline-flex w-fit items-center gap-3 rounded-full bg-white px-6 py-3.5 font-semibold text-zinc-900 will-change-[transform,opacity]"
             >
               Hire us for your next one <span aria-hidden>→</span>
             </a>
