@@ -548,7 +548,7 @@ export default function Home() {
   const detail = open !== null ? PROJECTS[open] : null;
 
   return (
-    <div className="bg-[#0e0e0d] font-sans text-zinc-100">
+    <div className="bg-[#f7f0e4] font-sans text-[#2b1c12]">
       <section
         ref={sectionRef}
         className={`relative h-screen w-full ${flipping ? "" : "overflow-hidden"}`}
@@ -583,10 +583,10 @@ export default function Home() {
                       ref={(el) => {
                         titleRefs.current[i] = el;
                       }}
-                      className={`whitespace-nowrap font-display leading-tight tracking-[-0.05em] will-change-[transform,opacity] ${
+                      className={`whitespace-nowrap font-display leading-tight tracking-[-0.02em] will-change-[transform,opacity] ${
                         isActive
-                          ? "text-[calc(1.875rem+1px)] font-bold text-white sm:text-[calc(2.25rem+1px)] lg:text-[calc(2.6rem+1px)]"
-                          : "text-3xl font-medium text-zinc-600 sm:text-4xl lg:text-[2.6rem]"
+                          ? "text-[calc(1.875rem+1px)] font-bold text-[#c9502a] sm:text-[calc(2.25rem+1px)] lg:text-[calc(2.6rem+1px)]"
+                          : "text-3xl font-medium text-[#cdb99e] sm:text-4xl lg:text-[2.6rem]"
                       }`}
                       style={{
                         opacity: Math.max(0.12, 1 - dist * 0.28),
@@ -644,7 +644,7 @@ export default function Home() {
                         imgRefs.current[i] = el;
                       }}
                       onClick={() => isActive && open === null && openDetail()}
-                      className={`absolute left-0 w-full overflow-hidden rounded-md border border-white/10 will-change-[transform,opacity] ${
+                      className={`absolute left-0 w-full overflow-hidden rounded-md border border-[#2b1c12]/10 will-change-[transform,opacity] ${
                         isActive ? "cursor-pointer" : ""
                       }`}
                       // the -50% centering is baked into `top` (IMG_H / 2)
@@ -685,7 +685,7 @@ export default function Home() {
           {/* dark cover fades in/out separately from the morphing image */}
           <div
             data-overlay-bg
-            className="pointer-events-none absolute inset-0 -z-10 bg-[#0e0e0d] will-change-[opacity]"
+            className="pointer-events-none absolute inset-0 -z-10 bg-[#f7f0e4] will-change-[opacity]"
           />
           {/* Left: content */}
           <div className="flex h-full max-w-2xl flex-col">
@@ -693,12 +693,10 @@ export default function Home() {
               type="button"
               onClick={closeDetail}
               data-detail-fade
-              className="group flex w-fit items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-400 transition-colors will-change-[transform,opacity] hover:text-white"
+              aria-label="Back to work"
+              className="flex h-10 w-10 items-center justify-center rounded-md bg-[#c9502a] text-lg text-[#fff6ea] transition-colors will-change-[transform,opacity] hover:bg-[#2b1c12]"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-md border border-zinc-700 transition-colors group-hover:border-zinc-400">
-                ←
-              </span>
-              Back to work
+              ←
             </button>
 
             {/* single line + fluid size: the title box keeps the same shape
@@ -707,33 +705,30 @@ export default function Home() {
             <h1
               ref={detailTitleRef}
               data-detail-title
-              className="mt-10 w-fit origin-top-left whitespace-nowrap font-display text-[clamp(1.5rem,4.5vw,3rem)] font-bold leading-tight tracking-[-0.05em] text-white will-change-[transform,opacity]"
+              className="mt-10 w-fit origin-top-left whitespace-nowrap font-display text-[clamp(1.5rem,4.5vw,3rem)] font-bold leading-tight tracking-[-0.02em] text-[#c9502a] will-change-[transform,opacity]"
             >
               {detail.title}
             </h1>
 
-            <p data-split className="mt-6 leading-7 text-zinc-400">
+            <p data-split className="mt-6 leading-7 text-[#6d5843]">
               A project shaped end to end — from the first concept sketches to
-              the final delivered assets.
-            </p>
-
-            <p data-split className="mt-6 leading-7 text-zinc-400">
-              The brief was simple to say and hard to do: make it feel
-              effortless. We built the system around a few strict rules — one
-              typeface, a tight grid, and photography that breathes — so every
-              piece feels like it belongs to the same world.
+              the final delivered assets. The brief was simple to say and hard
+              to do: make it feel effortless, so we built the system around a
+              few strict rules — one typeface, a tight grid, and photography
+              that breathes — until every piece felt like it belongs to the
+              same world.
             </p>
 
             <div className="mt-12">
               <p
                 data-split
-                className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500"
+                className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#b3722c]"
               >
                 Scope of work
               </p>
               <ul
                 data-split
-                className="mt-4 space-y-2 text-lg font-medium text-zinc-200"
+                className="mt-4 space-y-2 text-lg font-medium text-[#2b1c12]"
               >
                 <li>Art direction</li>
                 <li>Brand identity</li>
@@ -745,6 +740,9 @@ export default function Home() {
             <a
               href="#"
               data-detail-fade
+              // the CTA is an action of its own — its click must not bubble
+              // to the overlay's click-anywhere-to-close handler
+              onClick={(e) => e.stopPropagation()}
               // hover scale runs through GSAP too — a CSS transition on
               // transform would re-interpolate every frame the entrance/exit
               // tween writes, so the two would fight and smear the motion
@@ -762,9 +760,9 @@ export default function Home() {
                   ease: "power2.out",
                 })
               }
-              className="mt-auto inline-flex w-fit items-center gap-3 rounded-md bg-white px-6 py-3.5 font-semibold text-zinc-900 will-change-[transform,opacity]"
+              className="mt-auto inline-flex w-fit items-center rounded-md bg-[#2b1c12] px-7 py-3.5 font-semibold text-[#f7e8d6] transition-colors will-change-[transform,opacity] hover:bg-[#c9502a] hover:text-[#fff6ea]"
             >
-              Hire us for your next one <span aria-hidden>→</span>
+              Hire us for your next one
             </a>
           </div>
 
@@ -774,7 +772,7 @@ export default function Home() {
             <div
               ref={detailImgRef}
               data-detail-image
-              className="relative overflow-hidden rounded-md border border-white/10 will-change-[transform,opacity]"
+              className="relative overflow-hidden rounded-md border border-[#2b1c12]/10 will-change-[transform,opacity]"
               // SAME 440:520 ratio as the rail card, as tall as the viewport
               // allows — identical ratios keep the morph a clean uniform
               // scale (100vh - 3rem accounts for the overlay's py-6)

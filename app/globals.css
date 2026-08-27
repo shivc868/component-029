@@ -2,10 +2,10 @@
 
 @theme inline {
   --font-sans: var(--font-manrope);
-  --font-display: var(--font-space-grotesk);
+  --font-display: var(--font-fraunces);
 }
 
 body {
   font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  background: #0e0e0d;
+  background: #f7f0e4;
 }
