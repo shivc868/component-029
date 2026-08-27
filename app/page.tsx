@@ -391,7 +391,9 @@ export default function Home() {
       });
 
       // text content: split into lines, each line rises out of its own
-      // overflow mask with a stagger — the classic line-mask reveal
+      // overflow mask with a stagger — the classic line-mask reveal.
+      // Held until ~0.75s: the travelling title (1s expo.inOut) is ~97%
+      // home by then, so the rising lines never cross its flight path
       splitsRef.current = [];
       document.querySelectorAll<HTMLElement>("[data-split]").forEach((el) => {
         const split = SplitText.create(el, {
@@ -402,19 +404,19 @@ export default function Home() {
         gsap.from(split.lines, {
           yPercent: 110,
           duration: 0.85,
-          delay: 0.35,
+          delay: 0.55,
           stagger: 0.08,
           ease: "power3.out",
         });
       });
 
-      // back button + CTA: quick rise-in — starts early and travels only a
-      // little, so the bottom button never hangs outside the view
+      // back button + CTA: rise-in only once the title has landed — they
+      // travel just a little, so the bottom button never hangs off-view
       gsap.from("[data-detail-fade]", {
         opacity: 0,
         y: 16,
         duration: 0.5,
-        delay: 0.3,
+        delay: 0.5,
         stagger: 0.07,
         ease: "power3.out",
         clearProps: "all",
