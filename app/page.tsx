@@ -585,7 +585,7 @@ export default function Home() {
                       }}
                       className={`whitespace-nowrap font-display leading-tight tracking-[-0.02em] will-change-[transform,opacity] ${
                         isActive
-                          ? "text-[calc(1.875rem+1px)] font-bold text-[#c9502a] sm:text-[calc(2.25rem+1px)] lg:text-[calc(2.6rem+1px)]"
+                          ? "text-3xl font-bold text-[#c9502a] sm:text-4xl lg:text-[2.6rem]"
                           : "text-3xl font-medium text-[#cdb99e] sm:text-4xl lg:text-[2.6rem]"
                       }`}
                       style={{
@@ -737,8 +737,8 @@ export default function Home() {
               </ul>
             </div>
 
-            <a
-              href="#"
+            <button
+              type="button"
               data-detail-fade
               // the CTA is an action of its own — its click must not bubble
               // to the overlay's click-anywhere-to-close handler
@@ -763,7 +763,7 @@ export default function Home() {
               className="mt-auto inline-flex w-fit items-center rounded-md bg-[#2b1c12] px-7 py-3.5 font-semibold text-[#f7e8d6] transition-colors will-change-[transform,opacity] hover:bg-[#c9502a] hover:text-[#fff6ea]"
             >
               Hire us for your next one
-            </a>
+            </button>
           </div>
 
           {/* Right: image — same 440:520 ratio as the rail card, centered on

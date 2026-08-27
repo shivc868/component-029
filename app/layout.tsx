@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Fraunces, Manrope } from "next/font/google";
+import { Bricolage_Grotesque, Manrope } from "next/font/google";
 import LenisProvider from "./components/LenisProvider";
 import "./globals.css";
 
-// warm display serif + clean grotesque body — a classic editorial pairing
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+// modern characterful grotesque for display + clean Manrope body
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
   subsets: ["latin"],
 });
 
@@ -23,7 +23,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${manrope.variable} h-full antialiased`}
+      className={`${bricolage.variable} ${manrope.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <LenisProvider>{children}</LenisProvider>
