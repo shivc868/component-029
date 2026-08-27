@@ -3,6 +3,7 @@
 import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { SplitText } from "gsap/SplitText";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type Project = {
@@ -126,8 +127,11 @@ export default function Home() {
   // the layout switches — the morph starts exactly from these
   const flipState = useRef<{ image: DOMRect; title: DOMRect } | null>(null);
 
+  // live SplitText instances for the open detail view, reverted on close
+  const splitsRef = useRef<SplitText[]>([]);
+
   useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger);
+    gsap.registerPlugin(ScrollTrigger, SplitText);
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
@@ -291,6 +295,9 @@ export default function Home() {
     morph(imgEl, snap.image, () => {
       setFlipping(false);
       if (isClosing) {
+        // unwrap the SplitText line masks before the overlay unmounts
+        splitsRef.current.forEach((s) => s.revert());
+        splitsRef.current = [];
         setOpen(null);
         setClosing(false);
         // resume scrolling only once the morph has landed — earlier and a
@@ -307,17 +314,68 @@ export default function Home() {
     });
 
     if (!isClosing && open !== null) {
-      // opening: the original rail card + list title fade out underneath
-      // their travelling copies instead of being left hanging at full
-      // opacity — no hard edge when the morphing elements pull away
-      [imgRefs.current[open], titleRefs.current[open]].forEach((el) => {
-        if (el)
-          gsap.to(el, {
-            opacity: 0,
-            duration: 0.35,
-            ease: "power2.out",
+      // opening: the original rail card crossfades out underneath its
+      // travelling copy (identical pixels, so the overlap is invisible).
+      // The list title is hidden INSTANTLY instead — the h1 copy never
+      // aligns glyph-for-glyph with the span, so any crossfade reads as
+      // doubled text
+      if (imgRefs.current[open])
+        gsap.to(imgRefs.current[open], {
+          opacity: 0,
+          duration: 0.35,
+          ease: "power2.out",
+        });
+      if (titleRefs.current[open])
+        gsap.set(titleRefs.current[open], { opacity: 0 });
+
+      // the layout splits open like two solid blocks: EVERYTHING above the
+      // active element travels a full screen-height up and out, everything
+      // below travels down and out — no stagger, both groups move as one,
+      // carving out the empty stage the detail content lands on. NOTE the
+      // rail stacks inverted (higher index = higher card), so the cards
+      // take the OPPOSITE sign of the list rows. (y goes on the
+      // spans/cards themselves — the row divs keep their translateY(-50%)
+      // centering untouched, rows only fade)
+      const push = window.innerHeight;
+      for (let i = 0; i < N; i++) {
+        if (i === open) continue;
+        const dirText = i < open ? -1 : 1;
+        const dirCard = -dirText;
+        const span = titleRefs.current[i];
+        const row = span?.parentElement;
+        const card = imgRefs.current[i];
+        // the slide runs the full 0.8s, but the fade finishes early — by
+        // the time the detail content rises into the same area the
+        // outgoing rows are already dim, so nothing reads as overlapping
+        if (card) {
+          gsap.to(card, {
+            y: dirCard * push,
+            duration: 0.8,
+            ease: "power2.in",
+            overwrite: "auto",
           });
-      });
+          gsap.to(card, {
+            opacity: 0,
+            duration: 0.4,
+            ease: "power1.out",
+            overwrite: "auto",
+          });
+        }
+        if (span)
+          gsap.to(span, {
+            y: dirText * push,
+            duration: 0.8,
+            ease: "power2.in",
+            overwrite: "auto",
+          });
+        if (row)
+          gsap.to(row, {
+            opacity: 0,
+            duration: 0.4,
+            ease: "power1.out",
+            overwrite: "auto",
+          });
+      }
 
       // opening: the dark cover and the content ease in around the morph
       gsap.from("[data-overlay-bg]", {
@@ -326,11 +384,32 @@ export default function Home() {
         ease: "power2.inOut",
         clearProps: "opacity",
       });
+
+      // text content: split into lines, each line rises out of its own
+      // overflow mask with a stagger — the classic line-mask reveal
+      splitsRef.current = [];
+      document.querySelectorAll<HTMLElement>("[data-split]").forEach((el) => {
+        const split = SplitText.create(el, {
+          type: "lines",
+          mask: "lines",
+        });
+        splitsRef.current.push(split);
+        gsap.from(split.lines, {
+          yPercent: 110,
+          duration: 0.85,
+          delay: 0.35,
+          stagger: 0.08,
+          ease: "power3.out",
+        });
+      });
+
+      // back button + CTA: quick rise-in — starts early and travels only a
+      // little, so the bottom button never hangs outside the view
       gsap.from("[data-detail-fade]", {
         opacity: 0,
-        y: 24,
-        duration: 0.6,
-        delay: 0.5,
+        y: 16,
+        duration: 0.5,
+        delay: 0.3,
         stagger: 0.07,
         ease: "power3.out",
         clearProps: "all",
@@ -348,36 +427,91 @@ export default function Home() {
           }
         });
 
-        // the whole section sits above the overlay while closing (so the
-        // travelling elements aren't trapped under it) — ease the *other*
-        // rows and cards in instead of letting them pop over the detail view
-        const neighbours: Element[] = [];
-        imgRefs.current.forEach((el, i) => {
-          if (el && i !== open) neighbours.push(el);
-        });
-        titleRefs.current.forEach((el, i) => {
-          const row = el?.parentElement;
-          if (row && i !== open) neighbours.push(row);
-        });
-        gsap.fromTo(
-          neighbours,
-          { opacity: 0 },
-          {
-            opacity: 1,
-            duration: 0.45,
-            ease: "power2.out",
-            clearProps: "opacity",
-          },
-        );
+        // the two blocks close back in around the returning image/title:
+        // the upper block descends as one from off-screen, the lower block
+        // rises as one — no stagger. (cards take the opposite sign: the
+        // rail stacks inverted, see the open branch)
+        const push = window.innerHeight;
+        for (let i = 0; i < N; i++) {
+          if (i === open) continue;
+          const dirText = i < open ? -1 : 1;
+          const dirCard = -dirText;
+          const delay = 0.05;
+          // the cards hang back a beat longer than the text — the morphing
+          // image leads, then its neighbours drop/rise into the rail
+          const cardDelay = 0.25;
+          // the MOTION starts early (block-close feel), but the elements
+          // stay faint until the travelling title/image has crossed their
+          // path — visibility only lands once the morph is nearly home,
+          // so nothing overlaps mid-air
+          const revealDelay = 0.45;
+          const span = titleRefs.current[i];
+          const row = span?.parentElement;
+          const card = imgRefs.current[i];
+          if (card) {
+            gsap.fromTo(
+              card,
+              { y: dirCard * push },
+              {
+                y: 0,
+                duration: 0.9,
+                delay: cardDelay,
+                ease: "power3.out",
+                overwrite: "auto",
+                clearProps: "transform",
+              },
+            );
+            gsap.fromTo(
+              card,
+              { opacity: 0 },
+              {
+                opacity: 1,
+                duration: 0.45,
+                delay: revealDelay,
+                ease: "power2.out",
+                overwrite: "auto",
+                clearProps: "opacity",
+              },
+            );
+          }
+          if (span)
+            gsap.fromTo(
+              span,
+              { y: dirText * push },
+              {
+                y: 0,
+                duration: 0.9,
+                delay,
+                ease: "power3.out",
+                overwrite: "auto",
+                clearProps: "transform",
+              },
+            );
+          if (row)
+            gsap.fromTo(
+              row,
+              { opacity: 0 },
+              {
+                opacity: 1,
+                duration: 0.45,
+                delay: revealDelay,
+                ease: "power2.out",
+                overwrite: "auto",
+                clearProps: "opacity",
+              },
+            );
+        }
       }
 
-      // closing: the big detail image + title fade out in place (crossfade)
-      // while the flip copies travel home — not vanishing in a single frame
-      gsap.to("[data-detail-image], [data-detail-title]", {
+      // closing: the big detail image crossfades out in place while the
+      // travelling copy heads home; the detail TITLE hides instantly for
+      // the same reason as on open — a text crossfade shows as ghosting
+      gsap.to("[data-detail-image]", {
         opacity: 0,
         duration: 0.55,
         ease: "power2.out",
       });
+      gsap.set("[data-detail-title]", { opacity: 0 });
 
       // closing: everything fades while the image travels home
       gsap.to("[data-overlay-bg]", {
@@ -385,7 +519,7 @@ export default function Home() {
         duration: 0.7,
         ease: "power2.inOut",
       });
-      gsap.to("[data-detail-fade]", {
+      gsap.to("[data-detail-fade], [data-split]", {
         opacity: 0,
         y: 12,
         duration: 0.3,
@@ -428,6 +562,10 @@ export default function Home() {
             >
               {PROJECTS.map((p, i) => {
                 const isActive = i === active;
+                // focus falloff: the centre title is crisp and bright, the
+                // rest blur + dim by their distance from it — nothing ever
+                // covers the active row itself
+                const dist = Math.abs(i - active);
                 return (
                   <div
                     key={p.title}
@@ -438,11 +576,19 @@ export default function Home() {
                       ref={(el) => {
                         titleRefs.current[i] = el;
                       }}
-                      className={`whitespace-nowrap font-display leading-tight tracking-[-0.05em] transition-colors duration-100 will-change-[transform,opacity] ${
+                      className={`whitespace-nowrap font-display leading-tight tracking-[-0.05em] will-change-[transform,opacity] ${
                         isActive
                           ? "text-[calc(1.875rem+1px)] font-bold text-white sm:text-[calc(2.25rem+1px)] lg:text-[calc(2.6rem+1px)]"
                           : "text-3xl font-medium text-zinc-600 sm:text-4xl lg:text-[2.6rem]"
                       }`}
+                      style={{
+                        opacity: Math.max(0.12, 1 - dist * 0.28),
+                        filter: isActive
+                          ? "none"
+                          : `blur(${Math.min(dist * 1.4, 5)}px)`,
+                        transition:
+                          "opacity 0.45s ease, filter 0.45s ease, color 0.1s ease",
+                      }}
                     >
                       {p.title}
                     </span>
@@ -559,13 +705,35 @@ export default function Home() {
               {detail.title}
             </h1>
 
-            <p
-              data-detail-fade
-              className="mt-6 leading-7 text-zinc-400 will-change-[transform,opacity]"
-            >
+            <p data-split className="mt-6 leading-7 text-zinc-400">
               A project shaped end to end — from the first concept sketches to
               the final delivered assets.
             </p>
+
+            <p data-split className="mt-6 max-w-md leading-7 text-zinc-400">
+              The brief was simple to say and hard to do: make it feel
+              effortless. We built the system around a few strict rules — one
+              typeface, a tight grid, and photography that breathes — so every
+              piece feels like it belongs to the same world.
+            </p>
+
+            <div className="mt-12">
+              <p
+                data-split
+                className="text-[11px] font-semibold uppercase tracking-[0.25em] text-zinc-500"
+              >
+                Scope of work
+              </p>
+              <ul
+                data-split
+                className="mt-4 space-y-2 text-lg font-medium text-zinc-200"
+              >
+                <li>Art direction</li>
+                <li>Brand identity</li>
+                <li>Editorial design</li>
+                <li>Motion &amp; interaction</li>
+              </ul>
+            </div>
 
             <a
               href="#"
