@@ -644,7 +644,7 @@ export default function Home() {
                         imgRefs.current[i] = el;
                       }}
                       onClick={() => isActive && open === null && openDetail()}
-                      className={`absolute left-0 w-full overflow-hidden rounded-xl will-change-[transform,opacity] ${
+                      className={`absolute left-0 w-full overflow-hidden rounded-md border border-white/10 will-change-[transform,opacity] ${
                         isActive ? "cursor-pointer" : ""
                       }`}
                       // the -50% centering is baked into `top` (IMG_H / 2)
@@ -695,7 +695,7 @@ export default function Home() {
               data-detail-fade
               className="group flex w-fit items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-400 transition-colors will-change-[transform,opacity] hover:text-white"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 transition-colors group-hover:border-zinc-400">
+              <span className="flex h-9 w-9 items-center justify-center rounded-md border border-zinc-700 transition-colors group-hover:border-zinc-400">
                 ←
               </span>
               Back to work
@@ -762,7 +762,7 @@ export default function Home() {
                   ease: "power2.out",
                 })
               }
-              className="mt-auto inline-flex w-fit items-center gap-3 rounded-full bg-white px-6 py-3.5 font-semibold text-zinc-900 will-change-[transform,opacity]"
+              className="mt-auto inline-flex w-fit items-center gap-3 rounded-md bg-white px-6 py-3.5 font-semibold text-zinc-900 will-change-[transform,opacity]"
             >
               Hire us for your next one <span aria-hidden>→</span>
             </a>
@@ -774,7 +774,7 @@ export default function Home() {
             <div
               ref={detailImgRef}
               data-detail-image
-              className="relative overflow-hidden rounded-xl will-change-[transform,opacity]"
+              className="relative overflow-hidden rounded-md border border-white/10 will-change-[transform,opacity]"
               // SAME 440:520 ratio as the rail card, as tall as the viewport
               // allows — identical ratios keep the morph a clean uniform
               // scale (100vh - 3rem accounts for the overlay's py-6)
