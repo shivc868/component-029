@@ -4,6 +4,7 @@ import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
+import { ScrambleTextPlugin } from "gsap/ScrambleTextPlugin";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type Project = {
@@ -20,90 +21,93 @@ const PROJECTS: Project[] = [
     client: "Lumen Press",
     category: "Editorial",
     count: 4,
-    image: "/portfolio-1.jpg",
+    image: "/arno-senoner-iUvQRvdIhsY-unsplash.jpg",
   },
   {
     title: "Atlas Coffee Co.",
     client: "Atlas Coffee",
     category: "Branding",
     count: 3,
-    image: "/portfolio-2.jpg",
+    image: "/curology-DGH1u80sZik-unsplash.jpg",
   },
   {
     title: "Helio · Solar Tracking",
     client: "Helio Labs",
     category: "Product",
     count: 5,
-    image: "/portfolio-3.jpg",
+    image: "/ethan-rougon-qv7I1yvF0ik-unsplash.jpg",
   },
   {
     title: "Praxis Annual Report",
     client: "Praxis Group",
     category: "Print",
     count: 2,
-    image: "/portfolio-4.jpg",
+    image: "/fernando-andrade-potCPE_Cw8A-unsplash.jpg",
   },
   {
     title: "Solas Type Specimen",
     client: "Solas Foundry",
     category: "Typography",
     count: 2,
-    image: "/portfolio-5.jpg",
+    image: "/kadarius-seegars-Mxy5gokl8mE-unsplash.jpg",
   },
   {
     title: "Drift Mobility",
     client: "Drift",
     category: "App Design",
     count: 6,
-    image: "/portfolio-6.jpg",
+    image: "/kiran-ck-cDrIiiptFqE-unsplash.jpg",
   },
   {
     title: "Frame Gallery 2024",
     client: "Frame",
     category: "Exhibition",
     count: 3,
-    image: "/portfolio-7.jpg",
+    image: "/mathilde-langevin-baKm-5z7ikk-unsplash.jpg",
   },
   {
     title: "Verde Studio Identity",
     client: "Verde Studio",
     category: "Identity",
     count: 4,
-    image: "/portfolio-8.jpg",
+    image: "/neauthy-skincare-NwAPSDTmxmk-unsplash.jpg",
   },
   {
     title: "Coalesce Festival",
     client: "Coalesce",
     category: "Campaign",
     count: 5,
-    image: "/portfolio-9.jpg",
+    image: "/ruslan-bardash-4kTbAMRAHtQ-unsplash.jpg",
   },
   {
     title: "Nimbus Weather App",
     client: "Nimbus Labs",
     category: "App Design",
     count: 4,
-    image: "/portfolio-10.jpg",
+    image: "/sun-lingyan-_H0fjILH5Vw-unsplash.jpg",
   },
   {
     title: "Forge Hardware Launch",
     client: "Forge Inc.",
     category: "Campaign",
     count: 6,
-    image: "/portfolio-11.jpg",
+    image: "/svitlana-bHsxBjzdWIE-unsplash.jpg",
   },
   {
     title: "Palette · Art Fair",
     client: "Palette",
     category: "Exhibition",
     count: 3,
-    image: "/portfolio-12.jpg",
+    image: "/taras-chernus-eSIlQfibAo8-unsplash.jpg",
   },
 ];
 
 const N = PROJECTS.length;
 const ITEM_H = 72; // px per list row
-const IMG_H = 520; // image card height
+// rail card size — SAME 440:520 ratio as the detail image (scaled ×1.15),
+// so the open/close morph stays a clean proportional scale
+const IMG_W = 506;
+const IMG_H = 598;
 const IMG_SLOT = IMG_H + 16; // card height + gap
 const SCROLL_PER_ITEM = 100; // scroll distance that moves one row
 
@@ -129,9 +133,141 @@ export default function Home() {
 
   // live SplitText instances for the open detail view, reverted on close
   const splitsRef = useRef<SplitText[]>([]);
+  // cursor-follow "Open" badge over the active card
+  const badgeRef = useRef<HTMLDivElement>(null);
+  const badgeTextRef = useRef<HTMLSpanElement>(null);
+  const follow = useRef<{ x?: (v: number) => void; y?: (v: number) => void }>(
+    {},
+  );
+  // master-hover bookkeeping: latest pointer position, whether the badge is
+  // currently on, and the freshest state snapshot for the per-frame check
+  const lastMouse = useRef<{ x: number; y: number } | null>(null);
+  const badgeOn = useRef(false);
+  const hoverState = useRef({
+    active: 0,
+    open: null as number | null,
+    closing: false,
+    flipping: false,
+  });
+  useEffect(() => {
+    hoverState.current = { active, open, closing, flipping };
+  }, [active, open, closing, flipping]);
+
+  // keep the badge fully INSIDE the card: clamp the cursor position so the
+  // pill (plus a little breathing room) never pokes past the image edges
+  const clampToCard = (card: HTMLElement, x: number, y: number) => {
+    const r = card.getBoundingClientRect();
+    const halfW = (badgeRef.current?.offsetWidth ?? 0) / 2 + 10;
+    const halfH = (badgeRef.current?.offsetHeight ?? 0) / 2 + 10;
+    return {
+      x: Math.min(Math.max(x, r.left + halfW), r.right - halfW),
+      y: Math.min(Math.max(y, r.top + halfH), r.bottom - halfH),
+    };
+  };
+
+  // one badge, two labels: "OPEN" over the list card, "CLOSE" over the
+  // detail image — pops in, scramble-decodes its label, trails the cursor
+  const showBadge = (
+    label: string,
+    card: HTMLElement,
+    cx: number,
+    cy: number,
+  ) => {
+    if (!badgeRef.current) return;
+    badgeOn.current = true;
+    gsap.set(badgeRef.current, clampToCard(card, cx, cy));
+    gsap.to(badgeRef.current, {
+      scale: 1,
+      opacity: 1,
+      duration: 0.45,
+      ease: "back.out(1.7)",
+      overwrite: "auto",
+    });
+    if (badgeTextRef.current)
+      gsap.to(badgeTextRef.current, {
+        duration: 1.2,
+        scrambleText: {
+          text: label,
+          chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+          speed: 0.6,
+        },
+        overwrite: "auto",
+      });
+  };
+  const moveBadge = (card: HTMLElement, cx: number, cy: number) => {
+    const pos = clampToCard(card, cx, cy);
+    follow.current.x?.(pos.x);
+    follow.current.y?.(pos.y);
+  };
+  const hideBadge = () => {
+    if (!badgeRef.current) return;
+    badgeOn.current = false;
+    gsap.to(badgeRef.current, {
+      scale: 0,
+      opacity: 0,
+      duration: 0.3,
+      ease: "power3.in",
+      overwrite: "auto",
+    });
+  };
 
   useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger, SplitText);
+    gsap.registerPlugin(ScrollTrigger, SplitText, ScrambleTextPlugin);
+
+    // the badge trails the cursor on a soft lerp — quickTo re-targets the
+    // same tween every mousemove, which is what gives the floaty feel
+    if (badgeRef.current) {
+      gsap.set(badgeRef.current, {
+        xPercent: -50,
+        yPercent: -50,
+        scale: 0,
+        opacity: 0,
+      });
+      follow.current.x = gsap.quickTo(badgeRef.current, "x", {
+        duration: 0.45,
+        ease: "power3",
+      });
+      follow.current.y = gsap.quickTo(badgeRef.current, "y", {
+        duration: 0.45,
+        ease: "power3",
+      });
+    }
+
+    // MASTER HOVER: instead of per-element enter/leave events, every frame
+    // we hit-test the pointer against the one element that matters right
+    // now (active rail card, or the detail image when open). The badge
+    // appears the moment the cursor is truly over the image — even when
+    // the image slides under a stationary cursor — and leaves otherwise.
+    const onMouseMove = (e: MouseEvent) => {
+      lastMouse.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    const masterHover = () => {
+      const m = lastMouse.current;
+      if (!m) return;
+      const s = hoverState.current;
+      let el: HTMLElement | null = null;
+      let label = "OPEN";
+      if (!s.flipping && !s.closing) {
+        if (s.open === null) el = imgRefs.current[s.active];
+        else {
+          el = detailImgRef.current;
+          label = "CLOSE";
+        }
+      }
+      if (el) {
+        const r = el.getBoundingClientRect();
+        const inside =
+          m.x >= r.left && m.x <= r.right && m.y >= r.top && m.y <= r.bottom;
+        if (inside) {
+          if (badgeOn.current) moveBadge(el, m.x, m.y);
+          else showBadge(label, el, m.x, m.y);
+          return;
+        }
+      }
+      if (badgeOn.current) hideBadge();
+    };
+    gsap.ticker.add(masterHover);
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
@@ -153,7 +289,12 @@ export default function Home() {
       tl.to(listRef.current, { y: -(N - 1) * ITEM_H, ease: "none" }, 0);
     }, sectionRef);
 
-    return () => ctx.revert();
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      gsap.ticker.remove(masterHover);
+      ctx.revert();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // the rail's y depends on the active project: glide it so the active
@@ -206,6 +347,16 @@ export default function Home() {
       gsap.set(railRef.current, { y: active * IMG_SLOT });
     }
 
+    // the badge bows out as the card takes over the screen
+    if (badgeRef.current)
+      gsap.to(badgeRef.current, {
+        scale: 0,
+        opacity: 0,
+        duration: 0.25,
+        ease: "power3.in",
+        overwrite: "auto",
+      });
+
     window.dispatchEvent(new Event("lenis:stop"));
     setFlipping(true);
     setOpen(active);
@@ -223,6 +374,7 @@ export default function Home() {
     // if the open morph is still mid-flight, freeze it where it is — the
     // rects captured above start the close morph from that exact spot
     gsap.killTweensOf([img, title]);
+    hideBadge();
     setFlipping(true);
     // keep the overlay mounted: it fades away while the image flips home.
     // NOTE: lenis restarts in the morph's onComplete — restarting here lets
@@ -549,6 +701,19 @@ export default function Home() {
 
   return (
     <div className="bg-[#f7f0e4] font-sans text-[#2b1c12]">
+      {/* cursor-follow "Open" badge — lives above the rail, below the
+          detail overlay; pointer-events off so clicks pass through */}
+      <div
+        ref={badgeRef}
+        // difference blend: the white pill inverts whatever image is under
+        // it, so the badge stays readable on ANY photo — bright or dark
+        className="pointer-events-none fixed left-0 top-0 z-[70] rounded-md bg-white px-6 py-3 text-[14px] font-semibold uppercase tracking-[0.2em] text-black mix-blend-difference will-change-transform"
+      >
+        {/* fixed-width slot so the scramble never changes the pill's size */}
+        <span ref={badgeTextRef} className="inline-block w-[4em] text-center">
+          OPEN
+        </span>
+      </div>
       <section
         ref={sectionRef}
         className={`relative h-screen w-full ${flipping ? "" : "overflow-hidden"}`}
@@ -630,7 +795,10 @@ export default function Home() {
           <div
             className={`relative h-full w-full ${flipping ? "" : "overflow-hidden"}`}
           >
-            <div className="absolute left-1/2 top-1/2 w-[440px] -translate-x-1/2">
+            <div
+              className="absolute left-1/2 top-1/2 -translate-x-1/2"
+              style={{ width: IMG_W }}
+            >
               <div
                 ref={railRef}
                 className="absolute left-0 right-0 top-0 will-change-transform"
@@ -659,7 +827,7 @@ export default function Home() {
                         src={p.image}
                         alt={p.title}
                         fill
-                        sizes="440px"
+                        sizes="506px"
                         className="object-cover will-change-transform"
                         priority={i < 2}
                       />
