@@ -104,10 +104,11 @@ const PROJECTS: Project[] = [
 
 const N = PROJECTS.length;
 const ITEM_H = 72; // px per list row
-// rail card size — SAME 440:520 ratio as the detail image (scaled ×1.15),
-// so the open/close morph stays a clean proportional scale
-const IMG_W = 506;
-const IMG_H = 598;
+// rail card size — 2:3 portrait, the SAME ratio as the detail image AND the
+// source photos: the morph stays a clean proportional scale and the photos
+// show nearly uncropped
+const IMG_W = 460;
+const IMG_H = 690;
 const IMG_SLOT = IMG_H + 16; // card height + gap
 const SCROLL_PER_ITEM = 100; // scroll distance that moves one row
 
@@ -700,14 +701,14 @@ export default function Home() {
   const detail = open !== null ? PROJECTS[open] : null;
 
   return (
-    <div className="bg-[#f7f0e4] font-sans text-[#2b1c12]">
+    <div className="bg-[#121410] font-sans text-[#f1f2ea]">
       {/* cursor-follow "Open" badge — lives above the rail, below the
           detail overlay; pointer-events off so clicks pass through */}
       <div
         ref={badgeRef}
         // difference blend: the white pill inverts whatever image is under
         // it, so the badge stays readable on ANY photo — bright or dark
-        className="pointer-events-none fixed left-0 top-0 z-[70] rounded-md bg-white px-6 py-3 text-[14px] font-semibold uppercase tracking-[0.2em] text-black mix-blend-difference will-change-transform"
+        className="pointer-events-none fixed left-0 top-0 z-[70] rounded-md bg-white px-3.5 py-1.5 text-[16px] font-black uppercase tracking-[0.2em] text-black mix-blend-difference will-change-transform"
       >
         {/* fixed-width slot so the scramble never changes the pill's size */}
         <span ref={badgeTextRef} className="inline-block w-[4em] text-center">
@@ -748,10 +749,10 @@ export default function Home() {
                       ref={(el) => {
                         titleRefs.current[i] = el;
                       }}
-                      className={`whitespace-nowrap font-display leading-tight tracking-[-0.02em] will-change-[transform,opacity] ${
+                      className={`whitespace-nowrap font-display leading-tight tracking-[-0.04em] will-change-[transform,opacity] ${
                         isActive
-                          ? "text-3xl font-bold text-[#c9502a] sm:text-4xl lg:text-[2.6rem]"
-                          : "text-3xl font-medium text-[#cdb99e] sm:text-4xl lg:text-[2.6rem]"
+                          ? "text-3xl font-medium text-[#d3f26a] sm:text-4xl lg:text-[2.6rem]"
+                          : "text-3xl font-medium text-[#5c6152] sm:text-4xl lg:text-[2.6rem]"
                       }`}
                       style={{
                         opacity: Math.max(0.12, 1 - dist * 0.28),
@@ -812,7 +813,7 @@ export default function Home() {
                         imgRefs.current[i] = el;
                       }}
                       onClick={() => isActive && open === null && openDetail()}
-                      className={`absolute left-0 w-full overflow-hidden rounded-md border border-[#2b1c12]/10 will-change-[transform,opacity] ${
+                      className={`absolute left-0 w-full overflow-hidden rounded-md border border-white/10 will-change-[transform,opacity] ${
                         isActive ? "cursor-pointer" : ""
                       }`}
                       // the -50% centering is baked into `top` (IMG_H / 2)
@@ -827,7 +828,7 @@ export default function Home() {
                         src={p.image}
                         alt={p.title}
                         fill
-                        sizes="506px"
+                        sizes="460px"
                         className="object-cover will-change-transform"
                         priority={i < 2}
                       />
@@ -853,7 +854,7 @@ export default function Home() {
           {/* dark cover fades in/out separately from the morphing image */}
           <div
             data-overlay-bg
-            className="pointer-events-none absolute inset-0 -z-10 bg-[#f7f0e4] will-change-[opacity]"
+            className="pointer-events-none absolute inset-0 -z-10 bg-[#121410] will-change-[opacity]"
           />
           {/* Left: content */}
           <div className="flex h-full max-w-2xl flex-col">
@@ -862,7 +863,7 @@ export default function Home() {
               onClick={closeDetail}
               data-detail-fade
               aria-label="Back to work"
-              className="flex h-10 w-10 items-center justify-center rounded-md bg-[#c9502a] text-lg text-[#fff6ea] transition-colors will-change-[transform,opacity] hover:bg-[#2b1c12]"
+              className="flex h-10 w-10 items-center justify-center rounded-md bg-[#d3f26a] text-lg text-[#121410] transition-colors will-change-[transform,opacity] hover:bg-[#f1f2ea]"
             >
               ←
             </button>
@@ -873,30 +874,30 @@ export default function Home() {
             <h1
               ref={detailTitleRef}
               data-detail-title
-              className="mt-10 w-fit origin-top-left whitespace-nowrap font-display text-[clamp(1.5rem,4.5vw,3rem)] font-bold leading-tight tracking-[-0.02em] text-[#c9502a] will-change-[transform,opacity]"
+              className="mt-10 w-fit origin-top-left whitespace-nowrap font-display text-[clamp(1.5rem,4.5vw,3rem)] font-medium leading-tight tracking-[-0.04em] text-[#d3f26a] will-change-[transform,opacity]"
             >
               {detail.title}
             </h1>
 
-            <p data-split className="mt-6 leading-7 text-[#6d5843]">
+            <p data-split className="mt-6 leading-7 text-[#a8ab99]">
               A project shaped end to end — from the first concept sketches to
               the final delivered assets. The brief was simple to say and hard
               to do: make it feel effortless, so we built the system around a
               few strict rules — one typeface, a tight grid, and photography
-              that breathes — until every piece felt like it belongs to the
-              same world.
+              that breathes — until every piece felt like it belongs to the same
+              world.
             </p>
 
             <div className="mt-12">
               <p
                 data-split
-                className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#b3722c]"
+                className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#9fae6e]"
               >
                 Scope of work
               </p>
               <ul
                 data-split
-                className="mt-4 space-y-2 text-lg font-medium text-[#2b1c12]"
+                className="mt-4 space-y-2 text-lg font-medium text-[#f1f2ea]"
               >
                 <li>Art direction</li>
                 <li>Brand identity</li>
@@ -928,25 +929,25 @@ export default function Home() {
                   ease: "power2.out",
                 })
               }
-              className="mt-auto inline-flex w-fit items-center rounded-md bg-[#2b1c12] px-7 py-3.5 font-semibold text-[#f7e8d6] transition-colors will-change-[transform,opacity] hover:bg-[#c9502a] hover:text-[#fff6ea]"
+              className="mt-auto inline-flex w-fit items-center rounded-md bg-[#d3f26a] px-7 py-3.5 font-semibold text-[#121410] transition-colors will-change-[transform,opacity] hover:bg-[#f1f2ea] hover:text-[#121410]"
             >
               Hire us for your next one
             </button>
           </div>
 
-          {/* Right: image — same 440:520 ratio as the rail card, centered on
+          {/* Right: image — same 2:3 ratio as the rail card, centered on
               the same spot, so the FLIP is a clean proportional scale */}
           <div className="hidden items-center justify-center lg:flex">
             <div
               ref={detailImgRef}
               data-detail-image
-              className="relative overflow-hidden rounded-md border border-[#2b1c12]/10 will-change-[transform,opacity]"
-              // SAME 440:520 ratio as the rail card, as tall as the viewport
+              className="relative overflow-hidden rounded-md border border-white/10 will-change-[transform,opacity]"
+              // SAME 2:3 ratio as the rail card, as tall as the viewport
               // allows — identical ratios keep the morph a clean uniform
               // scale (100vh - 3rem accounts for the overlay's py-6)
               style={{
-                aspectRatio: "440 / 520",
-                width: "min(100%, calc((100vh - 3rem) * (440 / 520)))",
+                aspectRatio: "2 / 3",
+                width: "min(100%, calc((100vh - 3rem) * (2 / 3)))",
               }}
             >
               {/* same `sizes` as the rail card so the browser reuses the
@@ -955,7 +956,7 @@ export default function Home() {
                 src={detail.image}
                 alt={detail.title}
                 fill
-                sizes="440px"
+                sizes="690px"
                 className="object-cover"
                 priority
               />

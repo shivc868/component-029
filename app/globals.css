@@ -2,10 +2,10 @@
 
 @theme inline {
   --font-sans: var(--font-manrope);
-  --font-display: var(--font-bricolage);
+  --font-display: var(--font-inter);
 }
 
 body {
   font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  background: #f7f0e4;
+  background: #121410;
 }
