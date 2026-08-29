@@ -121,6 +121,27 @@ export default function Home() {
   // while the FLIP runs, overflow clipping is lifted so the travelling
   // title/image never get cut off at container edges
   const [flipping, setFlipping] = useState(false);
+  // responsive: below lg the rail fills the screen and the cards size to
+  // the viewport (72vw, same 2:3 ratio). The morph measures live rects, so
+  // the flip geometry stays exact at any size
+  const [isMobile, setIsMobile] = useState(false);
+  const [dims, setDims] = useState({ w: IMG_W, h: IMG_H, slot: IMG_SLOT });
+  useEffect(() => {
+    const measure = () => {
+      const mob = window.innerWidth < 1024;
+      setIsMobile(mob);
+      if (mob) {
+        const w = Math.round(window.innerWidth * 0.72);
+        const h = Math.round(w * 1.5);
+        setDims({ w, h, slot: h + 16 });
+      } else {
+        setDims({ w: IMG_W, h: IMG_H, slot: IMG_SLOT });
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
   const sectionRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLDivElement>(null);
@@ -149,10 +170,11 @@ export default function Home() {
     open: null as number | null,
     closing: false,
     flipping: false,
+    mob: false,
   });
   useEffect(() => {
-    hoverState.current = { active, open, closing, flipping };
-  }, [active, open, closing, flipping]);
+    hoverState.current = { active, open, closing, flipping, mob: isMobile };
+  }, [active, open, closing, flipping, isMobile]);
 
   // keep the badge fully INSIDE the card: clamp the cursor position so the
   // pill (plus a little breathing room) never pokes past the image edges
@@ -247,6 +269,11 @@ export default function Home() {
       const m = lastMouse.current;
       if (!m) return;
       const s = hoverState.current;
+      // no cursor on touch layouts — the static tap-hint pills take over
+      if (s.mob) {
+        if (badgeOn.current) hideBadge();
+        return;
+      }
       let el: HTMLElement | null = null;
       let label = "OPEN";
       if (!s.flipping && !s.closing) {
@@ -303,7 +330,7 @@ export default function Home() {
   useEffect(() => {
     if (railRef.current)
       gsap.to(railRef.current, {
-        y: active * IMG_SLOT,
+        y: active * dims.slot,
         duration: 0.9,
         ease: "power3.out",
         overwrite: "auto",
@@ -316,7 +343,37 @@ export default function Home() {
         { scale: 1.06 },
         { scale: 1, duration: 0.9, ease: "power3.out", overwrite: "auto" },
       );
-  }, [active]);
+
+    // mobile tap-hint: pop the pill in and scramble its label every time a
+    // new card settles into the centre
+    const hint =
+      imgRefs.current[active]?.querySelector<HTMLElement>("[data-tap-hint]");
+    if (hint) {
+      gsap.fromTo(
+        hint,
+        { scale: 0, opacity: 0 },
+        {
+          scale: 1,
+          opacity: 1,
+          duration: 0.45,
+          delay: 0.2,
+          ease: "back.out(1.7)",
+          overwrite: "auto",
+        },
+      );
+      const label = hint.querySelector("span");
+      if (label)
+        gsap.to(label, {
+          duration: 1,
+          scrambleText: {
+            text: "OPEN",
+            chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            speed: 0.6,
+          },
+          overwrite: "auto",
+        });
+    }
+  }, [active, dims.slot]);
 
   // shared-element morph: snapshot where the title + image sit in the
   // current layout, then (after the other layout renders) start them from
@@ -345,7 +402,7 @@ export default function Home() {
     // landing target) is final rather than mid-tween
     if (railRef.current) {
       gsap.killTweensOf(railRef.current);
-      gsap.set(railRef.current, { y: active * IMG_SLOT });
+      gsap.set(railRef.current, { y: active * dims.slot });
     }
 
     // the badge bows out as the card takes over the screen
@@ -708,7 +765,7 @@ export default function Home() {
         ref={badgeRef}
         // difference blend: the white pill inverts whatever image is under
         // it, so the badge stays readable on ANY photo — bright or dark
-        className="pointer-events-none fixed left-0 top-0 z-[70] rounded-md bg-white px-3.5 py-1.5 text-[16px] font-black uppercase tracking-[0.2em] text-black mix-blend-difference will-change-transform"
+        className="pointer-events-none fixed left-0 top-0 z-[70] scale-0 opacity-0 rounded-md bg-white px-3.5 py-1.5 text-[16px] font-black uppercase tracking-[0.2em] text-black mix-blend-difference will-change-transform"
       >
         {/* fixed-width slot so the scramble never changes the pill's size */}
         <span ref={badgeTextRef} className="inline-block w-[4em] text-center">
@@ -724,14 +781,91 @@ export default function Home() {
         // overlay's dark cover
         style={{ zIndex: closing ? 60 : undefined }}
       >
-        <main className="mx-auto grid h-full w-full max-w-[1400px] grid-cols-1 px-6 sm:px-10 lg:grid-cols-[1.2fr_minmax(0,440px)] lg:gap-16">
+        {/* Image rail — painted BENEATH the title list: it comes first in
+            the DOM and both are positioned, so DOM order decides. On
+            desktop it matches the detail layout's image column exactly; on
+            mobile it fills the screen, the cards centre on it, and the
+            titles blend over the photo */}
+        <div
+          className="absolute"
+          style={
+            isMobile
+              ? { top: 0, bottom: 0, left: 0, right: 0 }
+              : { top: 0, bottom: 0, left: "calc(50% + 32px)", right: 40 }
+          }
+        >
+          <div
+            className={`relative h-full w-full ${flipping ? "" : "overflow-hidden"}`}
+          >
+            <div
+              className="absolute left-1/2 top-1/2 -translate-x-1/2"
+              style={{ width: dims.w }}
+            >
+              <div
+                ref={railRef}
+                className="absolute left-0 right-0 top-0 will-change-transform"
+              >
+                {PROJECTS.map((p, i) => {
+                  const isActive = i === active;
+                  return (
+                    <div
+                      key={p.title}
+                      ref={(el) => {
+                        imgRefs.current[i] = el;
+                      }}
+                      onClick={() => isActive && open === null && openDetail()}
+                      className={`absolute left-0 w-full overflow-hidden rounded-md border border-white/10 will-change-[transform,opacity] ${
+                        isActive ? "cursor-pointer" : ""
+                      }`}
+                      // the -50% centering is baked into `top` (dims.h / 2)
+                      // so the card carries NO resting transform — the close
+                      // morph tweens its transform back to plain identity
+                      style={{
+                        top: -i * dims.slot - dims.h / 2,
+                        height: dims.h,
+                      }}
+                    >
+                      <Image
+                        src={p.image}
+                        alt={p.title}
+                        fill
+                        sizes="460px"
+                        className="object-cover will-change-transform"
+                        priority={i < 2}
+                      />
+                      {/* mobile tap affordance — the cursor badge's little
+                          sibling: same white pill, same difference blend */}
+                      {isActive && open === null && (
+                        <div
+                          data-tap-hint
+                          className="absolute bottom-4 left-0 right-0 mx-auto w-fit rounded-md bg-white px-3 py-1.5 text-[13px] font-black uppercase tracking-[0.2em] text-black mix-blend-difference lg:hidden"
+                        >
+                          <span className="inline-block w-[4em] text-center">
+                            OPEN
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* the list paints ABOVE the rail (it comes later in the DOM) but
+            never takes the pointer — the cards below receive the clicks */}
+        <main className="pointer-events-none relative mx-auto grid h-full w-full max-w-[1400px] grid-cols-1 px-6 sm:px-10 lg:grid-cols-[1.2fr_minmax(0,440px)] lg:gap-16">
           {/* Project list — drifts upward, active row locked to center */}
           <div
             className={`relative h-full ${flipping ? "" : "overflow-hidden"}`}
           >
             <div
               ref={listRef}
-              className="absolute left-0 right-0 top-1/2 will-change-transform"
+              // the list is a stacking context (will-change) — putting the
+              // difference blend on IT lets the whole title stack invert
+              // whatever photo passes underneath on mobile
+              className="absolute left-0 right-0 top-1/2 mix-blend-difference will-change-transform lg:mix-blend-normal"
             >
               {PROJECTS.map((p, i) => {
                 const isActive = i === active;
@@ -742,7 +876,7 @@ export default function Home() {
                 return (
                   <div
                     key={p.title}
-                    className="absolute left-0 flex w-full items-baseline gap-x-5 text-left"
+                    className="absolute left-0 flex w-full items-baseline justify-center gap-x-5 text-center lg:justify-start lg:text-left"
                     style={{ top: i * ITEM_H, transform: "translateY(-50%)" }}
                   >
                     <span
@@ -751,8 +885,8 @@ export default function Home() {
                       }}
                       className={`whitespace-nowrap font-display leading-tight tracking-[-0.04em] will-change-[transform,opacity] ${
                         isActive
-                          ? "text-3xl font-medium text-[#d3f26a] sm:text-4xl lg:text-[2.6rem]"
-                          : "text-3xl font-medium text-[#5c6152] sm:text-4xl lg:text-[2.6rem]"
+                          ? "text-[6.5vw] font-medium text-white sm:text-4xl lg:text-[2.6rem] lg:text-[#d3f26a]"
+                          : "text-[6.5vw] font-medium text-white sm:text-4xl lg:text-[2.6rem] lg:text-[#5c6152]"
                       }`}
                       style={{
                         opacity: Math.max(0.12, 1 - dist * 0.28),
@@ -776,69 +910,6 @@ export default function Home() {
           <div className="hidden lg:block" />
         </main>
 
-        {/* Image rail — this region matches the detail layout's image column
-            exactly (px-10, py-10, half split with gap-16), and the 440px card
-            strip is centered inside it: the active card sits on the SAME
-            center the big detail image will have, so the FLIP grows it
-            outward from its own middle */}
-        <div
-          className="absolute hidden lg:block"
-          style={{
-            // full height: neighbouring cards run to the screen edges with
-            // no empty cut-off band; the centre still sits at 50vh, matching
-            // the detail image, so the FLIP geometry is unchanged
-            top: 0,
-            bottom: 0,
-            left: "calc(50% + 32px)",
-            right: 40,
-          }}
-        >
-          <div
-            className={`relative h-full w-full ${flipping ? "" : "overflow-hidden"}`}
-          >
-            <div
-              className="absolute left-1/2 top-1/2 -translate-x-1/2"
-              style={{ width: IMG_W }}
-            >
-              <div
-                ref={railRef}
-                className="absolute left-0 right-0 top-0 will-change-transform"
-              >
-                {PROJECTS.map((p, i) => {
-                  const isActive = i === active;
-                  return (
-                    <div
-                      key={p.title}
-                      ref={(el) => {
-                        imgRefs.current[i] = el;
-                      }}
-                      onClick={() => isActive && open === null && openDetail()}
-                      className={`absolute left-0 w-full overflow-hidden rounded-md border border-white/10 will-change-[transform,opacity] ${
-                        isActive ? "cursor-pointer" : ""
-                      }`}
-                      // the -50% centering is baked into `top` (IMG_H / 2)
-                      // so the card carries NO resting transform — the close
-                      // morph tweens its transform back to plain identity
-                      style={{
-                        top: -i * IMG_SLOT - IMG_H / 2,
-                        height: IMG_H,
-                      }}
-                    >
-                      <Image
-                        src={p.image}
-                        alt={p.title}
-                        fill
-                        sizes="460px"
-                        className="object-cover will-change-transform"
-                        priority={i < 2}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* Project detail — no header, just the project content */}
@@ -847,23 +918,34 @@ export default function Home() {
           // a click anywhere on the open view sends it home — the back
           // button is just an affordance, not the only way out
           onClick={closeDetail}
-          className={`fixed inset-0 z-50 grid grid-cols-1 gap-10 px-6 py-6 sm:px-10 lg:grid-cols-2 lg:gap-16 ${
+          // NOTE: no data-lenis-prevent here — Lenis honours that attribute
+          // *before* its stopped-check, so wheel/touch over the overlay would
+          // fall through to native scroll and drag the page behind the view
+          // mobile: a compact flex column (title → image → copy → CTA) that
+          // fits ONE viewport, nothing scrolls; desktop: the unchanged
+          // two-column grid
+          className={`fixed inset-0 z-50 flex flex-col gap-4 px-6 py-6 sm:px-10 lg:grid lg:grid-cols-2 lg:gap-16 ${
             closing ? "pointer-events-none overflow-visible" : "overflow-hidden"
           }`}
         >
           {/* dark cover fades in/out separately from the morphing image */}
           <div
             data-overlay-bg
-            className="pointer-events-none absolute inset-0 -z-10 bg-[#121410] will-change-[opacity]"
+            // fixed, not absolute: the overlay scrolls on mobile, and an
+            // absolute cover only spans the first viewport-height of the
+            // content — the pinned rail would ghost through below it
+            className="pointer-events-none fixed inset-0 -z-10 bg-[#121410] will-change-[opacity]"
           />
-          {/* Left: content */}
-          <div className="flex h-full max-w-2xl flex-col">
+          {/* Left: content — on mobile the wrapper dissolves
+              (display: contents) so the image can slot in right after the
+              title via flex order */}
+          <div className="flex h-full max-w-2xl flex-col max-lg:contents">
             <button
               type="button"
               onClick={closeDetail}
               data-detail-fade
               aria-label="Back to work"
-              className="flex h-10 w-10 items-center justify-center rounded-md bg-[#d3f26a] text-lg text-[#121410] transition-colors will-change-[transform,opacity] hover:bg-[#f1f2ea]"
+              className="flex h-10 w-10 items-center justify-center rounded-md bg-[#d3f26a] text-lg text-[#121410] transition-colors will-change-[transform,opacity] hover:bg-[#f1f2ea] max-lg:hidden"
             >
               ←
             </button>
@@ -874,12 +956,15 @@ export default function Home() {
             <h1
               ref={detailTitleRef}
               data-detail-title
-              className="mt-10 w-fit origin-top-left whitespace-nowrap font-display text-[clamp(1.5rem,4.5vw,3rem)] font-medium leading-tight tracking-[-0.04em] text-[#d3f26a] will-change-[transform,opacity]"
+              className="mt-10 w-fit origin-top-left whitespace-nowrap font-display text-[clamp(1.5rem,4.5vw,3rem)] font-medium leading-tight tracking-[-0.04em] text-[#d3f26a] will-change-[transform,opacity] max-lg:mt-2"
             >
               {detail.title}
             </h1>
 
-            <p data-split className="mt-6 leading-7 text-[#a8ab99]">
+            <p
+              data-split
+              className="mt-6 leading-7 text-[#a8ab99] max-lg:order-1 max-lg:mt-0 max-lg:text-[13px] max-lg:leading-5"
+            >
               A project shaped end to end — from the first concept sketches to
               the final delivered assets. The brief was simple to say and hard
               to do: make it feel effortless, so we built the system around a
@@ -888,7 +973,9 @@ export default function Home() {
               world.
             </p>
 
-            <div className="mt-12">
+            {/* mobile: mt-auto pushes the scope block (and the CTA after
+                it) to the bottom edge so the column fills the viewport */}
+            <div className="mt-12 max-lg:order-1 max-lg:mt-auto">
               <p
                 data-split
                 className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#9fae6e]"
@@ -897,7 +984,8 @@ export default function Home() {
               </p>
               <ul
                 data-split
-                className="mt-4 space-y-2 text-lg font-medium text-[#f1f2ea]"
+                // mobile: the scope items wrap inline to save vertical room
+                className="mt-4 space-y-2 text-lg font-medium text-[#f1f2ea] max-lg:mt-2 max-lg:flex max-lg:flex-wrap max-lg:gap-x-4 max-lg:gap-y-1 max-lg:space-y-0 max-lg:text-sm"
               >
                 <li>Art direction</li>
                 <li>Brand identity</li>
@@ -929,26 +1017,31 @@ export default function Home() {
                   ease: "power2.out",
                 })
               }
-              className="mt-auto inline-flex w-fit items-center rounded-md bg-[#d3f26a] px-7 py-3.5 font-semibold text-[#121410] transition-colors will-change-[transform,opacity] hover:bg-[#f1f2ea] hover:text-[#121410]"
+              className="mt-auto inline-flex w-fit items-center rounded-md bg-[#d3f26a] px-7 py-3.5 font-semibold text-[#121410] transition-colors will-change-[transform,opacity] hover:bg-[#f1f2ea] hover:text-[#121410] max-lg:order-1 max-lg:mt-3 max-lg:px-5 max-lg:py-2.5 max-lg:text-sm"
             >
               Hire us for your next one
             </button>
           </div>
 
           {/* Right: image — same 2:3 ratio as the rail card, centered on
-              the same spot, so the FLIP is a clean proportional scale */}
-          <div className="hidden items-center justify-center lg:flex">
+              the same spot, so the FLIP is a clean proportional scale. On
+              mobile it sits in the column flow right after the title */}
+          <div className="flex items-center justify-center">
             <div
               ref={detailImgRef}
               data-detail-image
               className="relative overflow-hidden rounded-md border border-white/10 will-change-[transform,opacity]"
-              // SAME 2:3 ratio as the rail card, as tall as the viewport
-              // allows — identical ratios keep the morph a clean uniform
-              // scale (100vh - 3rem accounts for the overlay's py-6)
-              style={{
-                aspectRatio: "2 / 3",
-                width: "min(100%, calc((100vh - 3rem) * (2 / 3)))",
-              }}
+              // SAME 2:3 ratio as the rail card on BOTH breakpoints — the
+              // morph stays a clean uniform scale. Mobile caps the image at
+              // 36vh so title + copy + CTA all fit one viewport with it
+              style={
+                isMobile
+                  ? { aspectRatio: "2 / 3", width: "calc(36vh * (2 / 3))" }
+                  : {
+                      aspectRatio: "2 / 3",
+                      width: "min(100%, calc((100vh - 3rem) * (2 / 3)))",
+                    }
+              }
             >
               {/* same `sizes` as the rail card so the browser reuses the
                   already-cached optimized image — no reload flash on open */}
@@ -960,6 +1053,11 @@ export default function Home() {
                 className="object-cover"
                 priority
               />
+              {/* mobile close affordance — travels with the image since
+                  it lives inside the morphing element */}
+              <div className="absolute bottom-4 left-0 right-0 z-10 mx-auto w-fit rounded-md bg-white px-3 py-1.5 text-[13px] font-black uppercase tracking-[0.2em] text-black mix-blend-difference lg:hidden">
+                CLOSE
+              </div>
             </div>
           </div>
         </div>

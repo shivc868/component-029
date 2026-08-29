@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* lenis-stopped → overflow: clip, so the document cannot scroll natively
+   while a project is open (Lenis alone only intercepts its own events) */
+@import "lenis/dist/lenis.css";
 
 @theme inline {
   --font-sans: var(--font-manrope);
